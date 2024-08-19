@@ -332,11 +332,105 @@ Running seed command `python prisma/seed.py` ...
 
 You can check the records in the database.
 
+Just to test our seed script is automatically executed by Prisma when migrating, let's make a change in our schema by adding 
+the `surname` column in the `User` model:
+    
+```diff
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
++  surname   String   @default("")
+  email     String   @unique
+  createdAt DateTime @default(now())
+  posts     Post[]
+  group     Group?   @relation(fields: [groupId], references: [id])
+  groupId   Int?
+}
+```
+
+Then, run the `prisma migrate dev` command to apply the change to the database and check the seed script is executed:
+
+```bash
+prisma migrate dev
+[...]
+Running seed command `python prisma/seed.py` ...
+
+🌱  The seed command has been executed.
+```
+
+The data are still present in the database even after the reset. 🎉
+
 ## Apply changes in production
 
 As previously mentioned, the `prisma migrate dev` command is not suitable for production environments.
-In production, we will use the `prisma migrate deploy` command to apply the changes to the database. 
 
-Before testing it, we will add some data in our database to simulate a production environment:
+In production, we will use the `prisma migrate deploy` command to apply the changes to the database as 
+explained [here](https://www.prisma.io/docs/orm/prisma-migrate/workflows/development-and-production#production-and-testing-environments). 
+
+Note that the migrate deploy command:
+
+- **Does not** issue a warning if an already applied migration is missing from migration history
+- **Does not** detect drift (production database schema differs from migration history end state - for example, due to a hotfix
+- **Does not** reset the database or generate artifacts (such as Prisma Client)
+- **Does not** rely on a shadow database
+
+To test this feature, we will create a change in our schema and the corresponding migration, but without applying it. 
+Then, we will be in the case we have prepared a migration in development and have to apply it in production.
+
+Remove the `surname` column from the `User` model:
+
+```diff
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+-  surname   String   @default("")
+  email     String   @unique
+  createdAt DateTime @default(now())
+  posts     Post[]
+  group     Group?   @relation(fields: [groupId], references: [id])
+  groupId   Int?
+}
+```
+
+Generate the migration using `prisma migrate dev --create-only`:
 
 ```bash
+prisma migrate dev --create-only --name remove_surname
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "postgres", schema "public" at "localhost:5432"
+
+
+⚠️  Warnings for the current datasource:
+
+  • You are about to drop the column `surname` on the `User` table, which still contains 1 non-null values.
+
+✔ Are you sure you want to create this migration? … yes
+Prisma Migrate created the following migration without applying it 20240819095236_remove_surname
+
+You can now edit it and apply it by running prisma migrate dev.
+```
+
+Then, we will apply to it to our database as it was a production environment:
+
+```bash
+prisma migrate deploy
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "postgres", schema "public" at "localhost:5432"
+
+4 migrations found in prisma/migrations
+
+Applying migration `20240819095236_remove_surname`
+
+The following migration(s) have been applied:
+
+migrations/
+  └─ 20240819095236_remove_surname/
+    └─ migration.sql
+      
+All migrations have been successfully applied.
+```
+
+By checking the database, we can see that the `surname` column has been removed from the `User` table and that the data
+are still present. 🎉
