@@ -7,7 +7,8 @@ Our example is a Python app, so we will also use the [Prisma Client Python](http
 
 ## Table of contents
 
-- [Setup](#setup-the-environment)
+- [Setup the environment](#setup-the-environment)
+- [Create a schema](#create-a-schema)
 
 ## Setup the environment
 
@@ -40,6 +41,7 @@ As we are testing Prisma with a Python backend, we have to change the default ge
 ```bash
 generator client {
   provider = "prisma-client-py"
+  recursive_type_depth = 5
 }
 ```
 
@@ -83,4 +85,38 @@ Please make sure to provide valid database credentials for the database server a
 
 Our project is now ready to play with Prisma! 🎉
 
+## Create a schema
 
+We will begin by creating a simple schema with a `User` model. We will define the model in the `schema.prisma` file:
+
+```prisma
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+```
+
+> Tips: We can check that the `schema.prisma` file is valid by running the `prisma validate` command.
+
+No we can use the `prisma db push` to synchronize the database with our schema:
+
+```bash
+prisma db push 
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "postgres", schema "public" at "localhost:5432"
+
+🚀  Your database is now in sync with your Prisma schema. Done in 64ms
+
+Running generate... - Prisma Client Python (v0.15.0)
+
+✔ Generated Prisma Client Python (v0.15.0) to ./../../../../../Library/Caches/pypoetry/virtualenvs/prisma-orm-example-2L4QBR3R-py3.12/lib/python3.12/site-packages/prisma in 71ms
+```
+
+If we check in the database, we can see that the `User` table has been created as expected:
+
+![User table](./docs/images/db_first_push.png)
+
+We have created our first model with Prisma! 🎉
