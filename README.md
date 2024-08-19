@@ -12,6 +12,8 @@ Our example is a Python app, so we will also use the [Prisma Client Python](http
 - [Create a migration](#create-a-migration)
 - [Insert data for testing](#insert-data-for-testing)
 - [Apply changes in production](#apply-changes-in-production)
+- [Use the client for queries](#use-the-client-for-queries)
+- [Conclusion](#conclusion)
 
 ## Setup the environment
 
@@ -434,3 +436,84 @@ All migrations have been successfully applied.
 
 By checking the database, we can see that the `surname` column has been removed from the `User` table and that the data
 are still present. 🎉
+
+
+## Use the client for queries
+
+We have implemented a simple but powerful query in our Python app:
+
+```python
+# Execute queries on our schema managed by Prisma
+users = await db.user.find_many(
+    include={
+        'group': True,
+        'posts': {
+            'include': {
+                'comments': True
+            }
+        }
+    },
+)
+```
+
+The query will return the following JSON object:
+
+```json
+{
+  "id": 1,
+  "name": "User 1",
+  "email": "user1@gravitek.io",
+  "createdAt": "2024-08-19T09:33:35.956000Z",
+  "posts": [
+    {
+      "id": 1,
+      "title": "Post 1",
+      "content": "My great paragraph",
+      "published": false,
+      "author": null,
+      "authorId": 1,
+      "createdAt": "2024-08-19T09:33:35.972000Z",
+      "comments": [
+        {
+          "id": 1,
+          "content": "Comment 1",
+          "post": null,
+          "postId": 1,
+          "createdAt": "2024-08-19T09:33:35.981000Z"
+        }
+      ]
+    }
+  ],
+  "group": {
+    "id": 1,
+    "name": "Group 1",
+    "users": null
+  },
+  "groupId": 1
+}
+```
+
+So, everything is working well. 
+It just remains to deep dive the [Prisma Queries functionalities](https://www.prisma.io/docs/orm/prisma-client/queries) in the documentation. 
+
+> Just be aware that the implementation in Python differs from the documentation which is made for TypeScript.
+> But it is quite similar and the documentation of the Python client really helps to understand how to use it.
+
+## Conclusion
+
+We have seen how to use Prisma ORM with a PostgreSQL database in a Python app.
+
+Except specific situation, in most case the use of an ORM solution like Prisma is highly recommended to manage
+the database lifecycle easily and efficiently, especially when working with a team.
+
+The Prisma solution is regularly cited in the tech stack of SaaS creators, like [here](https://www.devcreated.com/articles/best-tech-stack-for-micro-saas-as-a-solopreneur-in-2024). 
+On the other hand, it is usually used with a backend developed in Next.JS, not in Python.
+
+The Python client for Prisma is enough maintained to date in order to be used in production: 1,8k stars, multiple 
+contributors and [Renovate](https://docs.renovatebot.com/) to keep the dependencies up to date.
+
+---
+
+I hope this example will help you to start with Prisma ORM in your Python project. 🚀
+And do not hesitate to send me all your feedback.
+
