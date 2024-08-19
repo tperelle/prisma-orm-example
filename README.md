@@ -10,6 +10,8 @@ Our example is a Python app, so we will also use the [Prisma Client Python](http
 - [Setup the environment](#setup-the-environment)
 - [Create a schema](#create-a-schema)
 - [Create a migration](#create-a-migration)
+- [Insert data for testing](#insert-data-for-testing)
+- [Apply changes in production](#apply-changes-in-production)
 
 ## Setup the environment
 
@@ -250,7 +252,91 @@ Your database is now in sync with your schema.
 ✔ Generated Prisma Client Python (v0.15.0) to ./../../../../../Library/Caches/pypoetry/virtualenvs/prisma-orm-example-2L4QBR3R-py3.12/lib/python3.12/site-packages/prisma in 80ms
 ```
 
-We now have multiple migration scripts in the `prisma/migrations` folder in order to track each change:
+We now have multiple migration scripts in the `prisma/migrations` folder:
 - 20240819064523_schema_init
 - 20240819065840_add_group_model 
 
+In conclusion, the `prisma migrate dev` command is very useful to generate migration scripts when we want to version 
+our schema in Git. Keep in mind that each time, Prisma need to reset the database in order to reinstall the resulting 
+schema. **Never use this command in production!**
+
+Prisma is a powerful tool, but not magic. Sometimes, you may require to [customize migration scripts](https://github.com/RobertCraigie/prisma-client-py/issues/718).
+For example, when you rename a field, Prisma will drop the existing field by default. 
+For that case, you can use the `prisma migrate dev --create-only` command to generate the migration script without applying it.
+
+## Insert data for testing
+
+You can setup a [seed script](https://www.prisma.io/docs/orm/prisma-migrate/workflows/seeding#integrated-seeding-with-prisma-migrate) 
+in order to populate your schema with data after each migration.
+
+> The seeding feature is currently no integrated very well for Python projects.
+> [See this issue](https://github.com/RobertCraigie/prisma-client-py/issues/718) \
+> You have to create a `package.json` file to reference the seed script. 
+
+For our project, we will use Python for the seed script. Here is an example of `prisma/seed.py` file:
+
+```python
+from prisma import Prisma
+import asyncio
+
+async def seed() -> None:
+    db = Prisma()
+    await db.connect()
+
+    group1 = await db.group.create({
+        'name': 'Group 1'
+    })
+    user1 = await db.user.create({
+        'name': 'User 1',
+        'email': 'user1@gravitek.io',
+        'group': {
+            'connect': {
+                'id': group1.id
+            }
+        }
+    })
+    post1 = await db.post.create({
+        'title': 'Post 1',
+        'content': 'My great paragraph',
+        'author': {
+            'connect': {
+                'id': user1.id
+            }
+        }
+    })
+    comment1 = await db.comment.create({
+        'content': 'Comment 1',
+        'post': {
+            'connect': {
+                'id': post1.id
+            }
+        }
+    })
+
+    await db.disconnect()
+
+
+if __name__ == '__main__':
+    asyncio.run(seed())
+```
+
+You can run the seed script with the `prisma db seed` command:
+
+```bash
+prisma db seed
+Environment variables loaded from .env
+Running seed command `python prisma/seed.py` ...
+
+🌱  The seed command has been executed.
+```
+
+You can check the records in the database.
+
+## Apply changes in production
+
+As previously mentioned, the `prisma migrate dev` command is not suitable for production environments.
+In production, we will use the `prisma migrate deploy` command to apply the changes to the database. 
+
+Before testing it, we will add some data in our database to simulate a production environment:
+
+```bash
