@@ -14,9 +14,37 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Group {
+  id    Int    @id @default(autoincrement())
+  name  String
+  users User[]
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
+  createdAt DateTime @default(now())
+  posts     Post[]
+  group     Group?   @relation(fields: [groupId], references: [id])
+  groupId   Int?
+}
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  title     String
+  content   String
+  published Boolean   @default(false)
+  author    User?     @relation(fields: [authorId], references: [id])
+  authorId  Int?
+  createdAt DateTime  @default(now())
+  comments  Comment[]
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    Int
   createdAt DateTime @default(now())
 }

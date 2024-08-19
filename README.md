@@ -9,6 +9,7 @@ Our example is a Python app, so we will also use the [Prisma Client Python](http
 
 - [Setup the environment](#setup-the-environment)
 - [Create a schema](#create-a-schema)
+- [Create a migration](#create-a-migration)
 
 ## Setup the environment
 
@@ -120,3 +121,136 @@ If we check in the database, we can see that the `User` table has been created a
 ![User table](./docs/images/db_first_push.png)
 
 We have created our first model with Prisma! 🎉
+
+## Create a migration
+
+Now we will complete a little bit our schema:
+
+```prisma
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  posts     Post[]
+}
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  title     String
+  content   String
+  published Boolean   @default(false)
+  author    User?     @relation(fields: [authorId], references: [id])
+  authorId  Int?
+  createdAt DateTime  @default(now())
+  comments  Comment[]
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  content   String
+  post      Post     @relation(fields: [postId], references: [id])
+  postId    Int
+  createdAt DateTime @default(now())
+}
+```
+
+And apply the changes to the database using `prisma db push`.
+
+Now, if we want to version this schema in Git, we can generate a migration with the `prisma migrate dev` command:
+
+```bash
+prisma migrate dev
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "postgres", schema "public" at "localhost:5432"
+
+Drift detected: Your database schema is not in sync with your migration history.
+
+The following is a summary of the differences between the expected database schema given your migrations files, and the actual schema of the database.
+
+It should be understood as the set of changes to get from the expected schema to the actual schema.
+
+If you are running this the first time on an existing database, please make sure to read this documentation page:
+https://www.prisma.io/docs/guides/database/developing-with-prisma-migrate/troubleshooting-development
+
+[+] Added tables
+  - Comment
+  - Post
+  - User
+
+[*] Changed the `Comment` table
+  [+] Added foreign key on columns (postId)
+
+[*] Changed the `Post` table
+  [+] Added foreign key on columns (authorId)
+
+[*] Changed the `User` table
+  [+] Added unique index on columns (email)
+
+✔ We need to reset the "public" schema at "localhost:5432"
+Do you want to continue? All data will be lost. … yes
+
+✔ Enter a name for the new migration: … schema init
+Applying migration `20240819064523_schema_init`
+
+The following migration(s) have been created and applied from new schema changes:
+
+migrations/
+  └─ 20240819064523_schema_init/
+    └─ migration.sql
+
+Your database is now in sync with your schema.
+
+✔ Generated Prisma Client Python (v0.15.0) to ./../../../../../Library/Caches/pypoetry/virtualenvs/prisma-orm-example-2L4QBR3R-py3.12/lib/python3.12/site-packages/prisma in 78ms
+```
+
+As explained in the output, Prisma need to first reset the database to generate and apply the migration scripts.
+> Migration scripts are generated in the `prisma/migrations` folder. 
+
+In order to generate a new migration script, we will add the notion of User group in our schema:
+
+```prisma
+model Group {
+  id    Int    @id @default(autoincrement())
+  name  String
+  users User[]
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  createdAt DateTime @default(now())
+  posts     Post[]
+  group     Group?   @relation(fields: [groupId], references: [id])
+  groupId   Int?
+}
+```
+
+It's not mandatory to apply the changes to the database using `prisma db push`.
+We can directly generate the corresponding migration script with `prisma migrate dev`:
+
+```bash
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": PostgreSQL database "postgres", schema "public" at "localhost:5432"
+
+✔ Enter a name for the new migration: … add group model
+Applying migration `20240819065840_add_group_model`
+
+The following migration(s) have been created and applied from new schema changes:
+
+migrations/
+  └─ 20240819065840_add_group_model/
+    └─ migration.sql
+
+Your database is now in sync with your schema.
+
+✔ Generated Prisma Client Python (v0.15.0) to ./../../../../../Library/Caches/pypoetry/virtualenvs/prisma-orm-example-2L4QBR3R-py3.12/lib/python3.12/site-packages/prisma in 80ms
+```
+
+We now have multiple migration scripts in the `prisma/migrations` folder in order to track each change:
+- 20240819064523_schema_init
+- 20240819065840_add_group_model 
+
